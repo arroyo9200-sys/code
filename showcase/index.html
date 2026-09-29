@@ -194,6 +194,7 @@ async function selectExample(path, el) {
     '<pre class="source" id="source">Loading…</pre>' +
     '<div class="toolbar">' +
       '<button class="btn" id="runBtn" onclick="runCurrent()">▶ Run</button>' +
+      '<button class="btn secondary" id="driveBtn" onclick="saveToDrive()">📁 Save to Drive</button>' +
       '<span class="run-status" id="runStatus"></span>' +
     '</div>' +
     '<div class="output-wrap"><div class="section-label">Output</div>' +
@@ -235,6 +236,51 @@ async function runCurrent() {
   }
   btn.disabled = false;
   btn.innerHTML = '▶ Run';
+}
+
+async function saveToDrive() {
+  if (!current) return;
+  const btn = document.getElementById('driveBtn');
+  const status = document.getElementById('runStatus');
+  btn.disabled = true;
+  status.textContent = 'Checking Drive connection…';
+  status.className = 'run-status';
+  try {
+    const sres = await fetch('/api/drive/status');
+    const sdata = await sres.json();
+    if (!sdata.configured) {
+      status.textContent = '✗ Google OAuth not configured';
+      status.className = 'run-status err';
+      btn.disabled = false;
+      return;
+    }
+    if (!sdata.authenticated) {
+      status.textContent = 'Redirecting to Google…';
+      window.location.href = '/api/drive/auth';
+      return;
+    }
+    status.textContent = 'Saving to Drive…';
+    const sourceEl = document.getElementById('source');
+    const content = sourceEl ? sourceEl.textContent : '';
+    const filename = current.replace(/\//g, '_') + '.go';
+    const res = await fetch('/api/drive/save', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({filename: filename, content: content})
+    });
+    const data = await res.json();
+    if (res.ok && !data.error) {
+      status.textContent = '✓ Saved to Drive as ' + filename;
+      status.className = 'run-status ok';
+    } else {
+      status.textContent = '✗ ' + (data.error || 'Save failed');
+      status.className = 'run-status err';
+    }
+  } catch (err) {
+    status.textContent = '✗ ' + err;
+    status.className = 'run-status err';
+  }
+  btn.disabled = false;
 }
 
 function esc(s) {

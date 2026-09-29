@@ -61,6 +61,10 @@ func main() {
 	})
 	mux.HandleFunc("/api/source", serveSource)
 	mux.HandleFunc("/api/run", serveRun)
+	mux.HandleFunc("/api/drive/auth", handleDriveAuth)
+	mux.HandleFunc("/api/drive/callback", handleDriveCallback)
+	mux.HandleFunc("/api/drive/status", handleDriveStatus)
+	mux.HandleFunc("/api/drive/save", handleDriveSave)
 
 	srv := &http.Server{
 		Addr:         "0.0.0.0:3000",

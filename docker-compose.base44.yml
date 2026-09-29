@@ -7,6 +7,10 @@ services:
     ports:
       - "3000:3000"
     command: ["go", "run", "./showcase/"]
+    environment:
+      - BASE44_PUBLIC_HOST_SUFFIX=${BASE44_PUBLIC_HOST_SUFFIX}
+    env_file:
+      - /run/base44/app.env
     restart: on-failure
     healthcheck:
       test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/3000' 2>/dev/null || exit 1"]
