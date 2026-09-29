@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Go In Action — Code Examples</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --sidebar: #161b22;
+    --panel: #1c2128;
+    --border: #30363d;
+    --accent: #00add8;
+    --accent-dim: #0a7a9e;
+    --text: #e6edf3;
+    --muted: #7d8590;
+    --code-bg: #1e1e2e;
+    --green: #3fb950;
+    --red: #f85149;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    background: var(--sidebar);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+  header .logo {
+    width: 32px; height: 32px;
+    background: var(--accent);
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; font-weight: 700; color: #fff;
+  }
+  header h1 { font-size: 16px; font-weight: 600; }
+  header .sub { color: var(--muted); font-size: 13px; margin-left: 8px; }
+  .layout { display: flex; flex: 1; overflow: hidden; }
+  /* Sidebar */
+  aside {
+    width: 280px;
+    background: var(--sidebar);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    flex-shrink: 0;
+  }
+  .chapter-group { border-bottom: 1px solid var(--border); }
+  .chapter-header {
+    padding: 10px 16px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--accent);
+    background: rgba(0,173,216,0.05);
+  }
+  .example-item {
+    padding: 8px 16px 8px 28px;
+    font-size: 13px;
+    color: var(--text);
+    cursor: pointer;
+    border-left: 3px solid transparent;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .example-item:hover { background: rgba(255,255,255,0.04); }
+  .example-item.active {
+    background: rgba(0,173,216,0.1);
+    border-left-color: var(--accent);
+  }
+  /* Main */
+  main { flex: 1; overflow-y: auto; padding: 24px 32px; }
+  .breadcrumb { color: var(--muted); font-size: 13px; margin-bottom: 4px; }
+  .example-title { font-size: 22px; font-weight: 600; margin-bottom: 20px; }
+  .section-label {
+    font-size: 12px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.5px; color: var(--muted); margin-bottom: 8px;
+  }
+  .toolbar { display: flex; align-items: center; gap: 12px; margin: 16px 0 8px; }
+  .btn {
+    background: var(--accent);
+    color: #fff; border: none; padding: 8px 20px;
+    border-radius: 6px; font-size: 14px; font-weight: 600;
+    cursor: pointer; transition: background 0.15s;
+  }
+  .btn:hover { background: var(--accent-dim); }
+  .btn:disabled { opacity: 0.5; cursor: default; }
+  .btn.secondary { background: var(--panel); border: 1px solid var(--border); }
+  .btn.secondary:hover { background: var(--border); }
+  .run-status { font-size: 13px; color: var(--muted); }
+  .run-status.ok { color: var(--green); }
+  .run-status.err { color: var(--red); }
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    overflow-x: auto;
+    font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #cdd6f4;
+    max-height: 420px;
+    overflow-y: auto;
+  }
+  pre.source { white-space: pre; }
+  pre.output { white-space: pre-wrap; word-break: break-word; }
+  .output-wrap { margin-top: 20px; }
+  .empty-state {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    height: 100%; color: var(--muted); gap: 12px;
+  }
+  .empty-state .icon { font-size: 48px; opacity: 0.3; }
+  .spinner {
+    display: inline-block; width: 14px; height: 14px;
+    border: 2px solid var(--border); border-top-color: var(--accent);
+    border-radius: 50%; animation: spin 0.6s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">Go</div>
+  <h1>Go In Action</h1>
+  <span class="sub">— Code Examples Browser</span>
+</header>
+<div class="layout">
+  <aside id="sidebar"></aside>
+  <main id="main">
+    <div class="empty-state">
+      <div class="icon">🐹</div>
+      <div>Select an example from the sidebar to view its source and run it.</div>
+    </div>
+  </main>
+</div>
+<script>
+let examples = [];
+let current = null;
+
+async function loadExamples() {
+  const res = await fetch('/api/examples');
+  examples = await res.json();
+  renderSidebar();
+}
+
+function renderSidebar() {
+  const sb = document.getElementById('sidebar');
+  const chapters = {};
+  examples.forEach(e => {
+    (chapters[e.chapter] = chapters[e.chapter] || []).push(e);
+  });
+  let html = '';
+  Object.keys(chapters).sort((a,b) => chNum(a) - chNum(b)).forEach(ch => {
+    html += '<div class="chapter-group"><div class="chapter-header">' + esc(ch) + '</div>';
+    chapters[ch].forEach(e => {
+      const label = e.name || e.path;
+      html += '<div class="example-item" data-path="' + esc(e.path) + '">' + esc(label) + '</div>';
+    });
+    html += '</div>';
+  });
+  sb.innerHTML = html;
+  sb.querySelectorAll('.example-item').forEach(el => {
+    el.addEventListener('click', () => selectExample(el.dataset.path, el));
+  });
+}
+
+function chNum(ch) {
+  const m = ch.match(/\d+/);
+  return m ? parseInt(m[0]) : 999;
+}
+
+async function selectExample(path, el) {
+  document.querySelectorAll('.example-item').forEach(e => e.classList.remove('active'));
+  if (el) el.classList.add('active');
+  current = path;
+  const ex = examples.find(e => e.path === path);
+  const label = ex ? (ex.name || ex.path) : path;
+  const main = document.getElementById('main');
+  main.innerHTML =
+    '<div class="breadcrumb">' + esc(path) + '</div>' +
+    '<div class="example-title">' + esc(label) + '</div>' +
+    '<div class="section-label">Source</div>' +
+    '<pre class="source" id="source">Loading…</pre>' +
+    '<div class="toolbar">' +
+      '<button class="btn" id="runBtn" onclick="runCurrent()">▶ Run</button>' +
+      '<span class="run-status" id="runStatus"></span>' +
+    '</div>' +
+    '<div class="output-wrap"><div class="section-label">Output</div>' +
+    '<pre class="output" id="output">Click "Run" to execute this example.</pre></div>';
+  try {
+    const res = await fetch('/api/source?path=' + encodeURIComponent(path));
+    const data = await res.json();
+    document.getElementById('source').textContent = data.source || '(no source found)';
+  } catch (err) {
+    document.getElementById('source').textContent = 'Error: ' + err;
+  }
+}
+
+async function runCurrent() {
+  if (!current) return;
+  const btn = document.getElementById('runBtn');
+  const status = document.getElementById('runStatus');
+  const output = document.getElementById('output');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+  status.textContent = 'Running…';
+  status.className = 'run-status';
+  output.textContent = '';
+  try {
+    const res = await fetch('/api/run?path=' + encodeURIComponent(current), { method: 'POST' });
+    const data = await res.json();
+    output.textContent = data.output || '(no output)';
+    if (data.ok) {
+      status.textContent = '✓ Completed';
+      status.className = 'run-status ok';
+    } else {
+      status.textContent = '✗ Finished with issues';
+      status.className = 'run-status err';
+    }
+  } catch (err) {
+    output.textContent = 'Error: ' + err;
+    status.textContent = '✗ Error';
+    status.className = 'run-status err';
+  }
+  btn.disabled = false;
+  btn.innerHTML = '▶ Run';
+}
+
+function esc(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+loadExamples();
+</script>
+</body>
+</html>
